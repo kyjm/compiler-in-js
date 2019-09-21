@@ -1,7 +1,8 @@
 const lexer = require('./lexer')
 
 const { Program, AssignStmt } = require('./ast/Stmt')
-const { Id } = require('./ast/Terminal')
+const { Expr } = require('./ast/Expr')
+const { Id, Numeral } = require('./ast/Terminal')
 /**
  * 自顶部向下递归+lookahead一个token的parser
  * Program -> Stmts
@@ -15,22 +16,24 @@ class Parser {
     // 增加一个哨兵，用于判断结尾
     this.tokens.push({type : 'eof', value : null})
     this.index = 0
-    this.lookahead = this.tokens[this.index]
+    this.lookahead = this.tokens[this.index++]
 
     return this.parseProgram()
   }
 
   read(){
+
     if(this.lookahead.type !== 'eof') {
-      this.lookahead = this.tokens[++this.index]
+      this.lookahead = this.tokens[this.index++]
     }
   }
 
-  match(val) {
-    if(this.lookahead.val === val) {
+  match(value) {
+    if(this.lookahead.value === value) {
       this.read()
+      return value
     }
-    throw 'syntax error'
+    throw `syntax error : expect ${value} here but ${this.lookahead.value} found.`
   }
 
   matchType(type) {
@@ -44,7 +47,7 @@ class Parser {
    * Program -> Stmts 
    */
   parseProgram() {
-    return new Program(this.parseStmts)
+    return new Program(this.parseStmts())
   }
 
   parseStmts() {
@@ -57,10 +60,9 @@ class Parser {
 
   parseStmt() {
 
-    switch(this.lookahead.val) {
+    switch(this.lookahead.value) {
       case 'auto' :
         return this.parseAssignStmt()
-        break
       default :
         throw 'not impl.'
     }
@@ -72,11 +74,16 @@ class Parser {
    * AssignStmt -> auto id = expr
    */
   parseAssignStmt() {
+    
+
     this.match('auto')
     if(this.lookahead.type !== 'id'){
       throw 'syntax error'
     }
-    const id = new Id(this.lookahead.val)
+    const id = new Id(this.lookahead.value)
+
+    this.match(this.lookahead.value)
+    this.match('=')
     const right = this.parseExpr()
     return new AssignStmt(id, right)
   }
@@ -85,6 +92,8 @@ class Parser {
    * Expr -> Expr + Term | Expr - Term | Term
    * Term -> -Expr | (Expr) | Term * factor | Term / factor | factor
    * factor -> number | string | id
+   * 
+   * r : Expr -> Term Expr_ 
    */
   parseExpr() {
     const term = this.parseTerm()
@@ -97,39 +106,71 @@ class Parser {
    * Expr_ -> + Expr | - Expr | ϵ
    */
   parseExpr_() {
-    if(this.lookahead.type === 'eof') {
-      return null
+    if(this.lookahead.value === '+' || this.lookahead.value === '-') {
+      const value = this.match(this.lookahead.value)
+      return {op : value, expr : this.parseExpr()}
     }
-
-    if(this.lookahead.val === '+' || this.lookahead.val === '-') {
-      this.match(this.lookahead.val)
-      return {op : this.lookahead.val, expr : this.parseExpr_()}
-    }
-    throw 'syntax error'
+    return null
   }
   
   /**
-   * Term -> -Expr | (Expr) | factor Term_ 
+   * Term -> -Expr Term_ | (Expr) Term_ | factor Term_ 
    */
   parseTerm() {
-    const factor = this.parseFactor()
-    const {op, expr} = this.parseTerm_()
+    let left = null
+    if(this.lookahead.value === '-') {
+      this.match('-')
+      left = new Expr('-', this.parseExpr())
+    }
+    else if(this.lookahead.value === '(') {
+      this.match('(')
+      const expr = this.parseExpr()
+      this.match(')')
+      left = expr
+    } else {
+      left = this.parseFactor()
+    }
+    
+
+    const rterm = this.parseTerm_()
+    if(rterm === null) {
+      return left
+    }
+    return new Expr(rterm.op, left, rterm.expr)
+
   }
 
+  /**
+   * Term_ -> * Term | / Term | ϵ
+   */
   parseTerm_() {
 
+    if(this.lookahead.value === '*' || this.lookahead.value === '/') {
+      const value = this.match(this.lookahead.value)
+      return {op : value, expr : this.parseTerm()}
+    }
+    return null
   }
 
 
+  /**
+   * factor -> number | string | id
+   */
   parseFactor() {
     if(this.lookahead.type === 'number') {
-      return Number(this.lookahead.val)
+      const value = this.match(this.lookahead.value)
+      return new Numeral(value)
     }
     else if(this.lookahead.type === 'id') {
-      return Id(this.lookahead.val)
+      const value = this.match(this.lookahead.value)
+      return new Id(value)
+    }else if (this.lookahead.type === 'string') {
+      throw 'not impl.'
     }else{
       throw 'syntax error'
     }
   }
 
 }
+
+module.exports = Parser

@@ -1,19 +1,28 @@
-class Id {
+class Factor {
+  constructor(value) {
+    this.value = value
+  }
 
-  constructor(id){
-    this.id = id
+  lvalue() {
+    return this.value
+  }
+
+  rvalue() {
+    return this.value
+  }
+
+  print(level) {
+    console.log(''.padStart(level * 2) + this.value)
   }
 
 }
 
-class Number {
-  constructor(val) {
-    this.value = val
-  }
-}
+class Id extends Factor{}
+
+class Numeral extends Factor{}
 
 
 module.exports = {
   Id,
-  Number
+  Numeral
 }
