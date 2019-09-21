@@ -1,0 +1,22 @@
+{
+  "name": "compiler-in",
+  "version": "1.0.0",
+  "description": "``` javascript\r node ./test_lexer.js\r ```",
+  "main": "test_lexer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kyjm/compiler-in-js.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kyjm/compiler-in-js/issues"
+  },
+  "homepage": "https://github.com/kyjm/compiler-in-js#readme",
+  "dependencies": {
+    "mocha": "^6.2.0"
+  }
+}
