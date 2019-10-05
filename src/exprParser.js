@@ -1,5 +1,8 @@
 const { Expr } = require('./ast/Expr')
 
+/**
+ * 操作符优先级列表
+ */
 const PRIORITY_TABLE = {
   '+' : 60,
   '-' : 60,
@@ -17,6 +20,12 @@ const PRIORITY_TABLE = {
   ')' : 1000
 }
 
+/**
+ * 帮助Pop Stack直到Prediction满足
+ * @param {*} stack 
+ * @param {Lambda} prediction 
+ * @param {*} callback 
+ */
 function popUntil(stack, prediction, callback) {
   let v = null
   while( v = stack.pop() ) {
@@ -28,10 +37,17 @@ function popUntil(stack, prediction, callback) {
   }
 }
 
+/**
+ * 主程序
+ * @param {*} parser 
+ */
 function parseExpr(parser) {
   if(parser.lookahead.value === ')') {
     return null
   }
+  // PreOrder : 前序
+  // inOrder : 中序
+  // PostOrder : 后序
   const postOrderOutput = inOrderToPostOrder.call(parser)  
   return constructAST(postOrderOutput)
 
@@ -55,7 +71,8 @@ function constructAST(postOrderOutput) {
   return stack[0]
 }
 
-function inOrderToPostOrder() {
+
+function inOrderToPostOrder() {  
   const opStack = []        
   const output = []
 
@@ -68,18 +85,21 @@ function inOrderToPostOrder() {
     else if(this.lookahead.value === ')') { 
       popUntil(opStack, x => x.value === '(', x => {
         output.push(x)
-      })
+      })      
       const op = opStack.pop()
+      // 遇到没有左括号匹配的情况意味着需要停止处理
       if(!op || op.value !== '(') {
         break
       }
 
       this.match(')')
+
       if(this.lookahead.type != 'op'){
         break
       }
     } else if(this.lookahead.type === 'op') {
       const op = this.lookahead
+      
       if( !(op.value in PRIORITY_TABLE) ) {
         throw `An operator expected in @line ${this.lookahead.lineno} but ${this.lookahead.value} found`
       }
@@ -100,6 +120,7 @@ function inOrderToPostOrder() {
     }else {
       const factor = this.parseFactor()
       output.push(factor)
+      
       if(this.lookahead.type != 'op' || this.lookahead.value === '=') {
         break
       }
