@@ -12,14 +12,15 @@ function lexer(sourceCode) {
 
 	const tokens = []
 	let i = 0
+	let lineno = 0
 
 	function wrapper(automation_func){
 		return (...args) => {
 
 			const token = automation_func(...args)
 			i += token.value.length
+			token.lineno = lineno
 			tokens.push(token)
-
 		}
 	}
 	const getTokenLiteral = wrapper(literal)
@@ -38,12 +39,23 @@ function lexer(sourceCode) {
 		else if(c.match(/[+-\\*/&|=!;()]/)) {			
 			getTokenOp(sourceCode, i)
 		}
-		else if(c === ' ' || c === '\n' || c === '\t') {
+		else if(c === '{' || c === '}'){
+			i++
+			tokens.push( makeToken('block', c, lineno) )
+			
+		}
+		else if(c === '\n') {
+
+			i++
+			lineno ++
+			continue
+		}
+		else if(c === ' ' || c === '\t') {
 			i++
 			continue
 		}
 		else {
-			throw new LexicalError(`unexpected char ${c} `)
+			throw new LexicalError(`unexpected char ${c} in line ${lineno} `)
 		}
 	}
 	return tokens

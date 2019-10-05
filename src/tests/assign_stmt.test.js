@@ -14,3 +14,5 @@ const ilcode = [...ast.gen()]
 ilcode.forEach(item => {
   console.log(item)
 })
+
+

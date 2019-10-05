@@ -1,8 +1,10 @@
 const lexer = require('./lexer')
 
-const { Program, AssignStmt } = require('./ast/Stmt')
-const { Expr } = require('./ast/Expr')
+const { Program, AssignStmt, Function, Block, IfStmt, ReturnStmt, FunctionCallStmt } = require('./ast/Stmt')
+const { Expr, Args } = require('./ast/Expr')
 const { Id, Numeral } = require('./ast/Terminal')
+const exprParser = require('./exprParser')
+
 /**
  * 自顶部向下递归+lookahead一个token的parser
  * Program -> Stmts
@@ -25,7 +27,7 @@ class Parser {
 
     if(this.lookahead.type !== 'eof') {
       this.lookahead = this.tokens[this.index++]
-    }
+    }    
   }
 
   match(value) {
@@ -33,7 +35,7 @@ class Parser {
       this.read()
       return value
     }
-    throw `syntax error : expect ${value} here but ${this.lookahead.value} found.`
+    throw `syntax error @line ${this.lookahead.lineno} : expect ${value} here but ${this.lookahead.value} found.`
   }
 
   matchType(type) {
@@ -50,25 +52,133 @@ class Parser {
     return new Program(this.parseStmts())
   }
 
+  /**
+   * Stmts -> Stmt Stmts | ϵ
+   */
   parseStmts() {
     const stmts = []
-    while(this.lookahead.type !== 'eof') {
+    while(this.lookahead.type !== 'eof' && this.lookahead.value !== '}') {
       stmts.push ( this.parseStmt() )
     }
     return stmts
   }
 
+  /**
+   * Stmt -> AssignStmt | IfStmt | WhileStmt | Function | Block | ...
+   * AssignStmt -> auto <id> = Expr
+   * IfStmt -> if Expr Block else IfStmt | if Expr Block | Stmt
+   * 
+   */
   parseStmt() {
+
+    if(this.lookahead.type=== 'id' || this.lookahead.type === 'number') { // 表达式
+      return this.parseExpr()
+    }
 
     switch(this.lookahead.value) {
       case 'auto' :
         return this.parseAssignStmt()
+      case 'function':
+        return this.parseFunctionStmt()
+      case 'if':
+        return this.parseIfStmt()
+      case 'return':
+        return this.parseReturnStmt()
       default :
-        throw 'not impl.'
+        console.log(this.lookahead)
+        throw `syntax error @line ${this.lookahead.lineno} : not impl. ${this.lookahead.value}`
     }
 
   }
 
+  parseBlock() {
+    this.match('{')
+    const stmts = this.parseStmts()
+    this.match('}')
+    return new Block(stmts)
+  }
+
+
+
+  /**
+   * FunctionStmt -> function {id}(...ARGS) BLOCK
+   */
+  parseFunctionStmt(){
+    this.match('function')
+    if(this.lookahead.type !== 'id') {
+      throw 'syntax error'
+    }
+    const id = this.lookahead.value
+    this.match(id)
+
+    this.match('(')
+    const args = this.parseFuncArguments()
+    this.match(')')
+
+    const block = this.parseBlock()
+    return new Function(id, args, block)
+  }
+
+  /**
+   * ReturnStmt -> return Expr
+   */
+  parseReturnStmt() {
+    this.match('return')
+    const expr = this.parseExpr()
+    return new ReturnStmt(expr)
+  }
+
+  /**
+   * Args -> <id> | <id>,Args | ϵ
+   */
+  parseFuncArguments() {
+    let list = []
+    if(this.lookahead.type === 'id') {
+      const id = this.lookahead.value
+      this.match(id)
+      list.push(new Id(id))
+      if(this.lookahead.value === ',') {
+        this.match(',')
+        list = list.concat(this.parseFuncArguments())
+      }
+    } else {
+      return []
+    }
+    return new Args(list)
+  }
+
+  parseArguments() {
+    let list = []
+    let expr = null
+    while( (expr = this.parseExpr()) ) {
+      list.push(expr)
+    }
+    return new Args(list)
+  }
+
+  /**
+   * IfStmt -> if Expr Block | if Expr Block else IfStmt | if Expr Block else Block
+   */
+  parseIfStmt() {
+    this.match('if')
+    const expr = this.parseExpr()
+    const ifBlock = this.parseBlock()
+    
+    if(this.lookahead.value === 'else') {
+      this.match('else')
+      
+      if(this.lookahead.value === 'if') {
+        const ifStmt = this.parseIfStmt()
+        return new IfStmt(expr, ifBlock, ifStmt)
+      }
+      else {
+        const elseBlock = this.parseBlock()
+        return new IfStmt(expr, ifBlock, null, elseBlock)
+      }
+    }else {
+      return new IfStmt(expr, ifBlock)
+    }
+  }
 
   /**
    * AssignStmt -> auto id = expr
@@ -79,7 +189,7 @@ class Parser {
     this.match('auto')
     if(this.lookahead.type !== 'id'){
       throw 'syntax error'
-    }
+    }    
     const id = new Id(this.lookahead.value)
 
     this.match(this.lookahead.value)
@@ -88,70 +198,9 @@ class Parser {
     return new AssignStmt(id, right)
   }
 
-  /**
-   * Expr -> Expr + Term | Expr - Term | Term
-   * Term -> -Expr | (Expr) | Term * factor | Term / factor | factor
-   * factor -> number | string | id
-   * 
-   * r : Expr -> Term Expr_ 
-   */
   parseExpr() {
-    const term = this.parseTerm()
-    const rexpr = this.parseExpr_()
-    if(rexpr === null) {return term}
-    else {return new Expr(rexpr.op, term, rexpr.expr)}
+    return exprParser(this)
   }
-
-  /**
-   * Expr_ -> + Expr | - Expr | ϵ
-   */
-  parseExpr_() {
-    if(this.lookahead.value === '+' || this.lookahead.value === '-') {
-      const value = this.match(this.lookahead.value)
-      return {op : value, expr : this.parseExpr()}
-    }
-    return null
-  }
-  
-  /**
-   * Term -> -Expr Term_ | (Expr) Term_ | factor Term_ 
-   */
-  parseTerm() {
-    let left = null
-    if(this.lookahead.value === '-') {
-      this.match('-')
-      left = new Expr('-', this.parseExpr())
-    }
-    else if(this.lookahead.value === '(') {
-      this.match('(')
-      const expr = this.parseExpr()
-      this.match(')')
-      left = expr
-    } else {
-      left = this.parseFactor()
-    }
-    
-
-    const rterm = this.parseTerm_()
-    if(rterm === null) {
-      return left
-    }
-    return new Expr(rterm.op, left, rterm.expr)
-
-  }
-
-  /**
-   * Term_ -> * Term | / Term | ϵ
-   */
-  parseTerm_() {
-
-    if(this.lookahead.value === '*' || this.lookahead.value === '/') {
-      const value = this.match(this.lookahead.value)
-      return {op : value, expr : this.parseTerm()}
-    }
-    return null
-  }
-
 
   /**
    * factor -> number | string | id
@@ -163,11 +212,19 @@ class Parser {
     }
     else if(this.lookahead.type === 'id') {
       const value = this.match(this.lookahead.value)
+
+      if(this.lookahead.value=== '(') {
+        this.match('(')
+        const args = this.parseArguments()
+        this.match(')')
+        return new FunctionCallStmt(value, args)
+      }
+    
       return new Id(value)
     }else if (this.lookahead.type === 'string') {
       throw 'not impl.'
     }else{
-      throw 'syntax error'
+      throw `syntax error, expect a factor but ${this.lookahead.value} found`
     }
   }
 

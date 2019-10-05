@@ -21,7 +21,6 @@ class Id extends Factor{}
 
 class Numeral extends Factor{}
 
-
 module.exports = {
   Id,
   Numeral

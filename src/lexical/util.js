@@ -1,5 +1,5 @@
-function makeToken(type, value) {
-	return { type, value }
+function makeToken(type, value, lineno) {
+	return { type, value, lineno }
 }
 
 class LexicalError extends Error {
@@ -16,7 +16,8 @@ const KEYWORDS = [
   'for',
   'break',
   'continue',
-	'function',
+  'function',
+  'return',
 	'auto'
 ]
 

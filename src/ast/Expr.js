@@ -14,19 +14,16 @@ class Expr {
   }
 
   *gen(symbols){    
-    this.tmpId = symbols.assign_temp_var()
     if(this.left.gen) {
       yield * this.left.gen(symbols)
     }
     if(this.right.gen) {
       yield* this.right.gen(symbols)
     }
-    const lvalue = this.left.lvalue()
-    yield `${this.tmpId} = ${lvalue} ${this.op} ${this.right.rvalue()}`
-  }
-
-  lvalue(){
-    return this.tmpId
+    // left right 
+    this.tmpId = symbols.assign_temp_var()
+    const rvalue = this.left.rvalue()
+    yield `${this.tmpId} = ${rvalue} ${this.op} ${this.right.rvalue()}`
   }
 
   rvalue() {
@@ -35,6 +32,19 @@ class Expr {
 }
 
 
+class Args{
+  constructor(args) {
+    this.args = args
+  }
+
+  print(level) {
+    this.args.forEach(x => {
+      x.print(level)
+    })
+  }
+}
+
 module.exports = {
-  Expr
+  Expr,
+  Args
 }

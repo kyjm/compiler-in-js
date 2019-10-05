@@ -41,9 +41,92 @@ class Program{
   }
 }
 
+class Block{
+  constructor(stmts){
+    this.stmts = stmts
+  }
+
+  print(level) {
+    for(let i = 0; i < this.stmts.length; i++) {
+      this.stmts[i].print(level)
+    } 
+  }
+
+  *gen() {
+
+  }
+}
+
+class IfStmt {
+  constructor(expr, ifBlock, ifStmt, elseBlock) {
+    this.expr = expr
+    this.ifBlock = ifBlock
+    this.ifStmt = ifStmt
+    this.elseBlock = elseBlock
+  }
+
+  print(level) {
+    const pad = ''.padStart(level * 2)
+    console.log(pad + 'if')
+    this.expr.print(level+1)
+    this.ifBlock.print(level + 1)
+  }
+}
+
+class ReturnStmt{
+  constructor(expr){
+    this.expr = expr
+  }
+
+  print(level) {
+    const pad = ''.padStart(level * 2)
+    console.log(pad + 'return' )
+    this.expr.print(level+1)
+
+  }
+}
+
+class Function{
+  constructor(id, args, block) {
+    this.id = id
+    this.args = args
+    this.block = block
+  }
+
+  print(level) {
+
+    const pad = ''.padStart(level * 2)
+    console.log(pad + 'function:' + this.id)
+    this.args.print(level+1)
+    this.block.print(level + 1)
+    
+
+  }
+
+  *gen() {
+
+  }
+}
+
+class FunctionCallStmt{
+  constructor(id, args){
+    this.id = id
+    this.args = args
+  }
+  
+  print(level) {
+    const pad = ''.padStart(level * 2)
+    console.log(pad + `${this.id}()`)
+    this.args.print(level+1)
+  }
+}
+
 module.exports = {
   AssignStmt,
-  Program
-
-
+  Program,
+  Block,
+  Function,
+  IfStmt,
+  ReturnStmt,
+  FunctionCallStmt
 }
