@@ -1,27 +1,26 @@
 class Factor {
   constructor(value) {
-    this.value = value
+    this.value = value;
   }
 
   lvalue() {
-    return this.value
+    return this.value;
   }
 
   rvalue() {
-    return this.value
+    return this.value;
   }
 
   print(level) {
-    console.log(''.padStart(level * 2) + this.value)
+    console.log(''.padStart(level * 2) + this.value);
   }
-
 }
 
-class Id extends Factor{}
+class Id extends Factor {}
 
-class Numeral extends Factor{}
+class Numeral extends Factor {}
 
 module.exports = {
   Id,
   Numeral
-}
+};
