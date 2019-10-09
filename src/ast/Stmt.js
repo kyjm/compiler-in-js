@@ -1,12 +1,27 @@
 const Symbols = require('../Symbols')
-class AssignStmt {
-  constructor(left, right){
+const LexicalScope = require('./LexicalScope')
+
+class Stmt {
+  buildLexicalScope(parent) {
+    this.lexicalScope = parent
+  }
+}
+
+class DeclareStmt extends Stmt{
+  constructor(left, right, isCreate = false){
+    super()
     this.left = left
     this.right = right
+    this.isCreate = isCreate
   }
 
-  print(level) {
+  buildLexicalScope(parent) {
+    this.lexicalScope = parent
+    this.lexicalScope.bind(this.left.value)
+  }
 
+
+  print(level) {
     const pad = ''.padStart(level * 2)
     console.log(pad + '=')
     this.left && this.left.print(level + 1)
@@ -22,10 +37,27 @@ class AssignStmt {
 
 }
 
-class Program{
-  constructor(stmts) {
+class Block{
+
+  constructor(stmts){
     this.stmts = stmts
-    this.symbols = new Symbols()
+  }
+
+  buildLexicalScope(parent, create = true) {
+    if(create) {
+      this.lexicalScope = new LexicalScope() 
+      parent.add(this.lexicalScope)
+    }else {
+      this.lexicalScope = parent
+    }
+    
+    this.stmts.forEach(stmt => {
+      if (stmt instanceof Stmt) {
+        stmt.buildLexicalScope(this.lexicalScope)
+      } else {
+        stmt.bindLexicalScope(this.lexicalScope)
+      }
+    })
   }
 
   print() {
@@ -41,28 +73,51 @@ class Program{
   }
 }
 
-class Block{
+class Program extends Block{
   constructor(stmts){
-    this.stmts = stmts
+    super(stmts)
   }
 
-  print(level) {
-    for(let i = 0; i < this.stmts.length; i++) {
-      this.stmts[i].print(level)
-    } 
+  registerGlobals(scope){
+    scope.bind('print', 'function')
   }
 
-  *gen() {
-
+  buildLexicalScope(parent) {
+    this.lexicalScope = new LexicalScope()
+    this.registerGlobals(this.lexicalScope)
+    parent && parent.add(this.lexicalScope)
+    this.stmts.forEach(stmt => {
+      if(stmt instanceof Stmt) {
+        stmt.buildLexicalScope(this.lexicalScope)
+      }else {
+        stmt.bindLexicalScope(this.lexicalScope)
+      }
+    })
   }
 }
 
-class IfStmt {
-  constructor(expr, ifBlock, ifStmt, elseBlock) {
+
+class IfStmt extends Stmt{
+  /**
+   * @param {*} expr if 后面的表达式
+   * @param {*} ifBlock  if 后面的紧跟着的 Block
+   * @param {*} elseIfStmt 如果有else if， 相当于else后面跟着的If语句
+   * @param {*} elseBlock 如果没有else if 相当于else后面跟着的Block
+   */
+  constructor(expr, ifBlock, elseIfStmt, elseBlock) {
+    super()
     this.expr = expr
     this.ifBlock = ifBlock
-    this.ifStmt = ifStmt
+    this.elseIfStmt = elseIfStmt
     this.elseBlock = elseBlock
+  }
+
+  buildLexicalScope(parent) {
+    super.buildLexicalScope(parent)
+    this.expr.bindLexicalScope(this.lexicalScope)
+    this.ifBlock.buildLexicalScope(this.lexicalScope)
+    this.elseIfStmt && this.elseIfStmt.buildLexicalScope(this.lexicalScope)
+    this.elseBlock && this.elseBlock.buildLexicalScope(this.lexicalScope)
   }
 
   print(level) {
@@ -73,9 +128,15 @@ class IfStmt {
   }
 }
 
-class ReturnStmt{
+class ReturnStmt extends Stmt{
   constructor(expr){
+    super()
     this.expr = expr
+  }
+
+  buildLexicalScope(parent) {
+    super.buildLexicalScope(parent)
+    this.expr.bindLexicalScope(this.lexicalScope)
   }
 
   print(level) {
@@ -86,21 +147,27 @@ class ReturnStmt{
   }
 }
 
-class Function{
+class Function extends Stmt{
   constructor(id, args, block) {
+    super()
     this.id = id
     this.args = args
     this.block = block
   }
 
-  print(level) {
+  buildLexicalScope(parent) {
+    this.lexicalScope = new LexicalScope()
+    parent.add(this.lexicalScope)
+    parent.bind(this.id.value)  
+    this.args.bindLexicalScope(this.lexicalScope)
+    this.block.buildLexicalScope(this.lexicalScope, false)
+  }
 
+  print(level) {
     const pad = ''.padStart(level * 2)
     console.log(pad + 'function:' + this.id)
     this.args.print(level+1)
     this.block.print(level + 1)
-    
-
   }
 
   *gen() {
@@ -108,25 +175,12 @@ class Function{
   }
 }
 
-class FunctionCallStmt{
-  constructor(id, args){
-    this.id = id
-    this.args = args
-  }
-  
-  print(level) {
-    const pad = ''.padStart(level * 2)
-    console.log(pad + `${this.id}()`)
-    this.args.print(level+1)
-  }
-}
 
 module.exports = {
-  AssignStmt,
+  DeclareStmt,
   Program,
   Block,
   Function,
   IfStmt,
-  ReturnStmt,
-  FunctionCallStmt
+  ReturnStmt
 }

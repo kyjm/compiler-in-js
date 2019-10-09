@@ -1,7 +1,7 @@
 const lexer = require('./lexer')
 
-const { Program, AssignStmt, Function, Block, IfStmt, ReturnStmt, FunctionCallStmt } = require('./ast/Stmt')
-const { Expr, Args } = require('./ast/Expr')
+const { Program, DeclareStmt, Function, Block, IfStmt, ReturnStmt } = require('./ast/Stmt')
+const { Args, AssignExpr, FunctionCallExpr } = require('./ast/Expr')
 const { Id, Numeral } = require('./ast/Terminal')
 const exprParser = require('./exprParser')
 
@@ -20,7 +20,9 @@ class Parser {
     this.index = 0
     this.lookahead = this.tokens[this.index++]
 
-    return this.parseProgram()
+    const program = this.parseProgram()
+    program.buildLexicalScope()
+    return program
   }
 
   read(){
@@ -64,20 +66,24 @@ class Parser {
   }
 
   /**
-   * Stmt -> AssignStmt | IfStmt | WhileStmt | Function | Block | ...
-   * AssignStmt -> auto <id> = Expr
+   * Stmt -> DeclareStmt | IfStmt | WhileStmt | Function | Block | ...
+   * DeclareStmt -> auto <id> = Expr
    * IfStmt -> if Expr Block else IfStmt | if Expr Block | Stmt
    * 
    */
   parseStmt() {
 
-    if(this.lookahead.type=== 'id' || this.lookahead.type === 'number') { // 表达式
+    if(this.lookahead.type === 'id' || this.lookahead.type === 'number') {
       return this.parseExpr()
-    }
+    } 
+
+    // if(this.lookahead.type === 'number') { // 表达式
+    //   return this.parseExpr()
+    // }
 
     switch(this.lookahead.value) {
       case 'auto' :
-        return this.parseAssignStmt()
+        return this.parseDeclareStmt()
       case 'function':
         return this.parseFunctionStmt()
       case 'if':
@@ -100,6 +106,7 @@ class Parser {
 
 
 
+
   /**
    * FunctionStmt -> function {id}(...ARGS) BLOCK
    */
@@ -116,7 +123,7 @@ class Parser {
     this.match(')')
 
     const block = this.parseBlock()
-    return new Function(id, args, block)
+    return new Function(new Id(id), args, block)
   }
 
   /**
@@ -144,7 +151,7 @@ class Parser {
     } else {
       return []
     }
-    return new Args(list)
+    return new Args(list, 'function')
   }
 
   parseArguments() {
@@ -181,9 +188,9 @@ class Parser {
   }
 
   /**
-   * AssignStmt -> auto id = expr
+   * DeclareStmt -> auto id = expr
    */
-  parseAssignStmt() {
+  parseDeclareStmt() {
     
 
     this.match('auto')
@@ -195,7 +202,7 @@ class Parser {
     this.match(this.lookahead.value)
     this.match('=')
     const right = this.parseExpr()
-    return new AssignStmt(id, right)
+    return new DeclareStmt(id, right)
   }
 
   parseExpr() {
@@ -217,7 +224,12 @@ class Parser {
         this.match('(')
         const args = this.parseArguments()
         this.match(')')
-        return new FunctionCallStmt(value, args)
+        return new FunctionCallExpr(new Id(value), args)
+      }
+      else if(this.lookahead.value === '=') {
+        this.match('=')
+        const expr = this.parseExpr()
+        return new AssignExpr(new Id(value), expr)
       }
     
       return new Id(value)

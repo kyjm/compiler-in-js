@@ -8,12 +8,12 @@ function febonacci(n) {
   return febonacci(n-1) + febonacci(n-2)
 }
 
-print( x + y * (3 +5) == 10 )
 print( febonacci(5) )
 `
 
 
 const parser = new Parser()
 const ast = parser.parse(sourceCode)
-
 ast.print()
+console.log('-----SYMBOL TABLE--------')
+ast.lexicalScope.print()

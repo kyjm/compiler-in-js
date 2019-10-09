@@ -17,7 +17,15 @@ class Factor {
 
 }
 
-class Id extends Factor{}
+
+class Id extends Factor{
+  bindLexicalScope(scope) {
+    this.scope = scope.lookup(this.value)
+    if(this.scope === null) {
+      throw `undefined variable ${this.value}`
+    }
+  }
+}
 
 class Numeral extends Factor{}
 

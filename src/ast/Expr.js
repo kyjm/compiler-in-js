@@ -1,3 +1,5 @@
+const { Terminal, Id } = require('./Terminal')
+
 class Expr {
   constructor(op, left, right){
     this.op = op
@@ -29,12 +31,29 @@ class Expr {
   rvalue() {
     return this.tmpId
   }
+
+  bindLexicalScope(scope) {
+    this.left && this.left.bindLexicalScope && this.left.bindLexicalScope(scope)
+    this.right && this.right.bindLexicalScope && this.right.bindLexicalScope(scope)
+  }
 }
 
+class FunctionCallExpr extends Expr{
+  constructor(id, args){
+    super('call', id, args)
+  }
+}
+
+class AssignExpr extends Expr {
+  constructor(id, expr) {
+    super('=', id, expr)
+  }
+}
 
 class Args{
-  constructor(args) {
+  constructor(args, type = 'call') {
     this.args = args
+    this.type = type
   }
 
   print(level) {
@@ -42,9 +61,22 @@ class Args{
       x.print(level)
     })
   }
+
+  bindLexicalScope(scope) {
+    for (let i = 0; i < this.args.length; i++) {
+      if (this.type === 'function') {
+        scope.bind(this.args[i].value)
+        this.args[i].bindLexicalScope(scope)
+      } else {
+        this.args[i].bindLexicalScope && this.args[i].bindLexicalScope(scope)
+      }
+    }
+  }
 }
 
 module.exports = {
   Expr,
+  FunctionCallExpr,
+  AssignExpr,
   Args
 }
