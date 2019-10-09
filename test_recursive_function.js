@@ -1,4 +1,4 @@
-const Parser = require("./src/parser");
+const Parser = require('./src/parser');
 const sourceCode = `
 function febonacci(n) {
   if(n == 1 || n == 2) {

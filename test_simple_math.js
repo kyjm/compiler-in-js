@@ -1,4 +1,4 @@
-const Parser = require("./src/simple_math_parser");
+const Parser = require('./src/simple_math_parser');
 
 const sourceCode = `
   x+y*(5+6)

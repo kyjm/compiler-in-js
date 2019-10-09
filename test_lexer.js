@@ -1,4 +1,4 @@
-const lexer = require("./src/lexer");
+const lexer = require('./src/lexer');
 const sourceCode = `
   x+y*(5+6)
 `;
