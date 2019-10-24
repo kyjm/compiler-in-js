@@ -1,7 +1,7 @@
+let scopeId = 1
 class LexicalScope {
-  static scopeId = 1
   constructor(){
-    this.id = LexicalScope.scopeId ++
+    this.id = scopeId ++
     this.table = {}
     this.children = []
   }

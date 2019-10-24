@@ -15,21 +15,17 @@ class Expr {
 
   }
 
-  *gen(symbols){    
-    if(this.left.gen) {
-      yield * this.left.gen(symbols)
-    }
-    if(this.right.gen) {
-      yield* this.right.gen(symbols)
-    }
-    // left right 
-    this.tmpId = symbols.assign_temp_var()
-    const rvalue = this.left.rvalue()
-    yield `${this.tmpId} = ${rvalue} ${this.op} ${this.right.rvalue()}`
+  gen(il){    
+    // console.log(this.left)
+    this.left && this.left.gen && this.left.gen(il)
+    this.right && this.right.gen && this.right.gen(il)
+    const tempVar = il.requestTempVar()
+    il.add(`set ${tempVar} ${this.left.rvalue()}${this.op}${this.right.rvalue()}`)
+    this._rval = tempVar;
   }
 
   rvalue() {
-    return this.tmpId
+    return this._rval; 
   }
 
   bindLexicalScope(scope) {
@@ -42,11 +38,25 @@ class FunctionCallExpr extends Expr{
   constructor(id, args){
     super('call', id, args)
   }
+
+  gen(il) {
+    this.right.gen(il)
+    const tempVar = il.requestTempVar()
+    il.add(`${tempVar} = call ${this.left.lvalue()}`)
+    this._rval = tempVar
+  }
 }
 
 class AssignExpr extends Expr {
   constructor(id, expr) {
     super('=', id, expr)
+  }
+
+  gen(il) {
+    il.add(`declare ${id}`)
+    expr.gen(il)
+    il.add(`${id}=${expr.rvalue()}`)
+
   }
 }
 
@@ -72,6 +82,23 @@ class Args{
       }
     }
   }
+
+  gen(il) {
+    if(this.type == 'call') {
+      for (let i = 0; i < this.args.length; i++) {
+        const expr = this.args[i]
+        expr.gen && expr.gen(il)
+        il.add(`pass ${expr.rvalue()}`)
+      }
+    }else if(this.type === 'function') {
+      for (let i = 0; i < this.args.length; i++) {
+        const expr = this.args[i]
+        expr.gen && expr.gen(il)
+        il.add(`arg ${expr.rvalue()}`)
+      }
+    }
+  }
+
 }
 
 module.exports = {

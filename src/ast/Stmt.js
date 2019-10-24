@@ -1,5 +1,6 @@
 const Symbols = require('../Symbols')
 const LexicalScope = require('./LexicalScope')
+const ILGen = require('../gen/ILGen')
 
 class Stmt {
   buildLexicalScope(parent) {
@@ -17,7 +18,7 @@ class DeclareStmt extends Stmt{
 
   buildLexicalScope(parent) {
     this.lexicalScope = parent
-    this.lexicalScope.bind(this.left.value)
+    this.lexicalScope.bind(this.left.value, 'number')
   }
 
 
@@ -65,10 +66,9 @@ class Block{
       this.stmts[i].print(0)
     }
   }
-
-  *gen() {
+  gen(il){
     for(let i = 0; i < this.stmts.length; i++) {
-      yield * this.stmts[i].gen(this.symbols)
+      this.stmts[i].gen(il)
     }
   }
 }
@@ -76,16 +76,16 @@ class Block{
 class Program extends Block{
   constructor(stmts){
     super(stmts)
+    this.ilGen = new ILGen()
   }
 
   registerGlobals(scope){
     scope.bind('print', 'function')
   }
 
-  buildLexicalScope(parent) {
+  buildLexicalScope() {
     this.lexicalScope = new LexicalScope()
     this.registerGlobals(this.lexicalScope)
-    parent && parent.add(this.lexicalScope)
     this.stmts.forEach(stmt => {
       if(stmt instanceof Stmt) {
         stmt.buildLexicalScope(this.lexicalScope)
@@ -93,6 +93,12 @@ class Program extends Block{
         stmt.bindLexicalScope(this.lexicalScope)
       }
     })
+  }
+
+  gen(){
+    for(let i = 0; i < this.stmts.length; i++) {
+      this.stmts[i].gen(this.ilGen)
+    }
   }
 }
 
@@ -126,6 +132,22 @@ class IfStmt extends Stmt{
     this.expr.print(level+1)
     this.ifBlock.print(level + 1)
   }
+
+  gen(il) {
+    this.expr.gen(il)
+    il.add(`branch ${this.expr.rvalue()} ${il.nextLineNo()+1}`)
+    this.ifBlock.gen(il)
+    const ifBlockJump = il.add('')
+    if(this.elseIfStmt) {
+      this.elseIfStmt.gen(il)
+      il.add(`jump ${il.nextLineNo()+1}`)
+    }
+    if(this.elseBlock) {
+      this.elseBlock.gen(il)
+      il.add(`jump ${il.nextLineNo()+1}`)
+    }
+    ifBlockJump.code = `jump ${il.nextLineNo()}`
+  }
 }
 
 class ReturnStmt extends Stmt{
@@ -143,7 +165,11 @@ class ReturnStmt extends Stmt{
     const pad = ''.padStart(level * 2)
     console.log(pad + 'return' )
     this.expr.print(level+1)
+  }
 
+  gen(il){
+    this.expr && this.expr.gen && this.expr.gen(il)
+    il.add(`return ${this.expr.rvalue()}`)
   }
 }
 
@@ -158,7 +184,7 @@ class Function extends Stmt{
   buildLexicalScope(parent) {
     this.lexicalScope = new LexicalScope()
     parent.add(this.lexicalScope)
-    parent.bind(this.id.value)  
+    parent.bind(this.id.value, 'function')  
     this.args.bindLexicalScope(this.lexicalScope)
     this.block.buildLexicalScope(this.lexicalScope, false)
   }
@@ -170,8 +196,10 @@ class Function extends Stmt{
     this.block.print(level + 1)
   }
 
-  *gen() {
-
+  gen(il) {
+    il.add(`declare function ${this.id.lvalue()}`)
+    this.args.gen(il)
+    this.block.gen(il)
   }
 }
 
