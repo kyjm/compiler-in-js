@@ -22,7 +22,7 @@ class Id extends Factor{
   bindLexicalScope(scope) {
     this.scope = scope.lookup(this.value)
     if(this.scope === null) {
-      throw `undefined variable ${this.value}`
+      throw `sytnax error: ${this.value} is not defined`
     }
   }
 }

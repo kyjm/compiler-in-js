@@ -1,35 +1,71 @@
 class ILGen {
 
   constructor(){
-    this.codeLines = []  
-    this.lineno = 0
-    this.tempVarId = 1
+    this.stack = [] 
+    this.sections = []
   }
 
-  add(code) {
-    const obj = {
-      lineno : this.lineno++,
-      code
+  beginSection(mark){
+    const section = new Section(mark)
+    this.sections.push(section)
+    this.stack.push(section)
+  }
+
+  endSection(){
+    this.stack.pop()
+  }
+
+  add(code){
+    return this.current().add(code)
+  }
+
+  current(){
+    return this.stack[this.stack.length - 1]
+  }
+
+  print(){
+
+    for(let i = this.sections.length-1; i>=0; i--){
+      const section = this.sections[i]
+      console.log('section:' + section.mark)
+      for(let line of section.lines) {
+        console.log(`${line.lineno}:${line.code}`)
+      }
     }
-    this.codeLines.push(obj)
-    return obj
   }
 
-  nextLineNo() {
-    return this.lineno;
+  toText(){
+    let text = ''
+    for(let i = this.sections.length-1; i>=0; i--){
+      const section = this.sections[i]
+      text += section.mark + '\n'
+      for(let line of section.lines) {
+        text += line.code + '\n'
+      }
+    } 
+    return text
   }
-
-  requestTempVar() {
-    return `temp${this.tempVarId++}`
-  }
-
-  print() {
-    this.codeLines.forEach(line => {
-      console.log(`${line.lineno}: ${line.code}`)
-    })
-  }
-
 
 }
 
+class Section{
+  constructor(mark){
+    this.mark = mark 
+    this.lines = []
+    this.lineno = 0
+  }
+
+  add(code){
+    const line = {
+      code,
+      lineno : this.lineno++
+    }
+    this.lines.push(line)
+    return line
+  }
+}
+
 module.exports = ILGen
+
+
+

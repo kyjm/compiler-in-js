@@ -15,11 +15,11 @@ class Expr {
 
   }
 
-  gen(il){    
+  gen(il,scope){    
     // console.log(this.left)
-    this.left && this.left.gen && this.left.gen(il)
-    this.right && this.right.gen && this.right.gen(il)
-    const tempVar = il.requestTempVar()
+    this.left && this.left.gen && this.left.gen(il,scope)
+    this.right && this.right.gen && this.right.gen(il,scope)
+    const tempVar = scope.bindTempVar()
     il.add(`set ${tempVar} ${this.left.rvalue()}${this.op}${this.right.rvalue()}`)
     this._rval = tempVar;
   }
@@ -39,10 +39,10 @@ class FunctionCallExpr extends Expr{
     super('call', id, args)
   }
 
-  gen(il) {
-    this.right.gen(il)
-    const tempVar = il.requestTempVar()
-    il.add(`${tempVar} = call ${this.left.lvalue()}`)
+  gen(il,scope) {
+    this.right.gen(il,scope)    
+    const tempVar = scope.bindTempVar()
+    il.add(`${tempVar} = call ${scope.getLexemeName(this.left.lvalue())}`)
     this._rval = tempVar
   }
 }
@@ -52,10 +52,10 @@ class AssignExpr extends Expr {
     super('=', id, expr)
   }
 
-  gen(il) {
-    il.add(`declare ${id}`)
-    expr.gen(il)
-    il.add(`${id}=${expr.rvalue()}`)
+  gen(il,scope) {
+    il.add(`declare ${scope.getLexemeName(id.lvalue())}`)
+    expr.gen(il,scope)
+    il.add(`${scope.getLexemeName(id.lvalue())}=${expr.rvalue()}`)
 
   }
 }
@@ -83,18 +83,18 @@ class Args{
     }
   }
 
-  gen(il) {
+  gen(il,scope) {
     if(this.type == 'call') {
       for (let i = 0; i < this.args.length; i++) {
         const expr = this.args[i]
-        expr.gen && expr.gen(il)
+        expr.gen && expr.gen(il,scope)
         il.add(`pass ${expr.rvalue()}`)
       }
     }else if(this.type === 'function') {
       for (let i = 0; i < this.args.length; i++) {
         const expr = this.args[i]
-        expr.gen && expr.gen(il)
-        il.add(`arg ${expr.rvalue()}`)
+        expr.gen && expr.gen(il,scope)
+        il.add(`arg ${scope.getLexemeName(expr.rvalue())}`)
       }
     }
   }

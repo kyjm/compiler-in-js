@@ -44,7 +44,7 @@ function lexer(sourceCode) {
 			tokens.push( makeToken('block', c, lineno) )
 			
 		}
-		else if(c === '\n') {
+		else if(c === '\n' || c === '\r') {
 
 			i++
 			lineno ++
@@ -55,7 +55,7 @@ function lexer(sourceCode) {
 			continue
 		}
 		else {
-			throw new LexicalError(`unexpected char ${c} in line ${lineno} `)
+			throw new LexicalError(`lexical error:unexpected char ${c} in line ${lineno} `)
 		}
 	}
 	return tokens

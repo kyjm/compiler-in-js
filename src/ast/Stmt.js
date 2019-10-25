@@ -29,11 +29,11 @@ class DeclareStmt extends Stmt{
     this.right && this.right.print(level + 1)
   }
 
-  *gen(symbols) {
+  *gen(il,scope) {
     if(this.right.gen) {
-      yield * this.right.gen(symbols)
+      yield * this.right.gen(il, this.lexicalScope)
     }    
-    yield `${this.left.value} = ${this.right.rvalue()}`
+    yield `${this.lexicalScope.getLexemeName(this.left.value)} = ${this.right.rvalue()}`
   }
 
 }
@@ -46,8 +46,7 @@ class Block{
 
   buildLexicalScope(parent, create = true) {
     if(create) {
-      this.lexicalScope = new LexicalScope() 
-      parent.add(this.lexicalScope)
+      this.lexicalScope = new LexicalScope(parent)       
     }else {
       this.lexicalScope = parent
     }
@@ -68,7 +67,7 @@ class Block{
   }
   gen(il){
     for(let i = 0; i < this.stmts.length; i++) {
-      this.stmts[i].gen(il)
+      this.stmts[i].gen(il, this.lexicalScope)
     }
   }
 }
@@ -96,9 +95,11 @@ class Program extends Block{
   }
 
   gen(){
+    this.ilGen.beginSection('main')
     for(let i = 0; i < this.stmts.length; i++) {
-      this.stmts[i].gen(this.ilGen)
+      this.stmts[i].gen(this.ilGen, this.lexicalScope)
     }
+    this.ilGen.endSection()
   }
 }
 
@@ -134,19 +135,26 @@ class IfStmt extends Stmt{
   }
 
   gen(il) {
-    this.expr.gen(il)
-    il.add(`branch ${this.expr.rvalue()} ${il.nextLineNo()+1}`)
-    this.ifBlock.gen(il)
-    const ifBlockJump = il.add('')
+    this.expr.gen(il,this.lexicalScope)
+
+    const ifCodeLine = il.add('')
+    let ifBlockNextLineNo = null
+    this.ifBlock.gen(il,this.lexicalScope)
+
     if(this.elseIfStmt) {
-      this.elseIfStmt.gen(il)
-      il.add(`jump ${il.nextLineNo()+1}`)
+      if(!ifBlockNextLineNo){
+        ifBlockNextLineNo = il.current().lineno
+      }
+      this.elseIfStmt.gen(il,this.lexicalScope)
     }
-    if(this.elseBlock) {
-      this.elseBlock.gen(il)
-      il.add(`jump ${il.nextLineNo()+1}`)
+    else if(this.elseBlock) {
+      if(!ifBlockNextLineNo){
+        ifBlockNextLineNo = il.current().lineno
+      }
+      this.elseBlock.gen(il,this.lexicalScope)
     }
-    ifBlockJump.code = `jump ${il.nextLineNo()}`
+
+    ifCodeLine.code = `branch ${this.expr.rvalue()} ${ifCodeLine.lineno+1} ${il.current().lineno}`
   }
 }
 
@@ -168,8 +176,8 @@ class ReturnStmt extends Stmt{
   }
 
   gen(il){
-    this.expr && this.expr.gen && this.expr.gen(il)
-    il.add(`return ${this.expr.rvalue()}`)
+    this.expr && this.expr.gen && this.expr.gen(il,this.lexicalScope)
+    il.add(`return ${this.lexicalScope.getLexemeName(this.expr.rvalue())}`)
   }
 }
 
@@ -182,8 +190,7 @@ class Function extends Stmt{
   }
 
   buildLexicalScope(parent) {
-    this.lexicalScope = new LexicalScope()
-    parent.add(this.lexicalScope)
+    this.lexicalScope = new LexicalScope(parent)   
     parent.bind(this.id.value, 'function')  
     this.args.bindLexicalScope(this.lexicalScope)
     this.block.buildLexicalScope(this.lexicalScope, false)
@@ -197,9 +204,11 @@ class Function extends Stmt{
   }
 
   gen(il) {
-    il.add(`declare function ${this.id.lvalue()}`)
-    this.args.gen(il)
-    this.block.gen(il)
+    il.add(`declare function ${this.lexicalScope.getLexemeName(this.id.lvalue())}`)
+    il.beginSection(this.lexicalScope.getLexemeName(this.id.value))
+    this.args.gen(il, this.lexicalScope)
+    this.block.gen(il, this.lexicalScope)
+    il.endSection()
   }
 }
 
