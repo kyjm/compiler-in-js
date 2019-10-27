@@ -1,7 +1,9 @@
 let scopeId = 1
 class LexicalScope {
-  constructor(parent){
+  constructor(parent, others){
     this.parent = parent 
+
+    this.others = others
     if(!this.parent){
       this.globalHash = {}
     }
@@ -12,7 +14,7 @@ class LexicalScope {
     this.id = scopeId ++
     this.table = {}
     this.children = []
-    this.varId = 0; 
+    this.index = 0; 
     
 
   }
@@ -36,16 +38,17 @@ class LexicalScope {
   }
 
   bindTempVar(type = 'number'){
-    const varName = `$t`+this.varId
+    const varName = `$t`+this.index
     this.bind(varName, type)
     return varName+'@'+this.id
   }
 
-  bind(id, type = 'number') {
+  bind(id, type = 'number', others) {
     this.globalHash[id+'@'+this.id]=this
     this.table[id] = {
       type,
-      varId : this.varId++
+      index : this.index++,
+      ...others
     }
   }
 
@@ -75,7 +78,8 @@ class LexicalScope {
     const obj = {
       id:this.id,
       table : this.table,
-      children : this.children.map(child => child.toJSON())
+      children : this.children.map(child => child.toJSON()),
+      ...this.others
     }
     return obj
   }

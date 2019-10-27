@@ -20,7 +20,7 @@ class Expr {
     this.left && this.left.gen && this.left.gen(il,scope)
     this.right && this.right.gen && this.right.gen(il,scope)
     const tempVar = scope.bindTempVar()
-    il.add(`set ${tempVar} ${this.left.rvalue()}${this.op}${this.right.rvalue()}`)
+    il.add(`set ${tempVar} ${this.left.rvalue()} ${this.op} ${this.right.rvalue()}`)
     this._rval = tempVar;
   }
 
@@ -42,7 +42,7 @@ class FunctionCallExpr extends Expr{
   gen(il,scope) {
     this.right.gen(il,scope)    
     const tempVar = scope.bindTempVar()
-    il.add(`${tempVar} = call ${scope.getLexemeName(this.left.lvalue())}`)
+    il.add(`call ${scope.getLexemeName(this.left.lvalue())}`)
     this._rval = tempVar
   }
 }
@@ -72,6 +72,10 @@ class Args{
     })
   }
 
+  size(){
+    return this.args.length
+  }
+
   bindLexicalScope(scope) {
     for (let i = 0; i < this.args.length; i++) {
       if (this.type === 'function') {
@@ -89,12 +93,6 @@ class Args{
         const expr = this.args[i]
         expr.gen && expr.gen(il,scope)
         il.add(`pass ${expr.rvalue()}`)
-      }
-    }else if(this.type === 'function') {
-      for (let i = 0; i < this.args.length; i++) {
-        const expr = this.args[i]
-        expr.gen && expr.gen(il,scope)
-        il.add(`arg ${scope.getLexemeName(expr.rvalue())}`)
       }
     }
   }

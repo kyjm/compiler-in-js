@@ -95,7 +95,8 @@ class Program extends Block{
   }
 
   gen(){
-    this.ilGen.beginSection('main')
+    this.ilGen.beginSection('main@1')
+    this.ilGen.add('set %TOP% %SP%')
     for(let i = 0; i < this.stmts.length; i++) {
       this.stmts[i].gen(this.ilGen, this.lexicalScope)
     }
@@ -137,7 +138,7 @@ class IfStmt extends Stmt{
   gen(il) {
     this.expr.gen(il,this.lexicalScope)
 
-    const ifCodeLine = il.add('')
+    const ifCodeLine = il.add('', true)
     let ifBlockNextLineNo = null
     this.ifBlock.gen(il,this.lexicalScope)
 
@@ -154,7 +155,15 @@ class IfStmt extends Stmt{
       this.elseBlock.gen(il,this.lexicalScope)
     }
 
-    ifCodeLine.code = `branch ${this.expr.rvalue()} ${ifCodeLine.lineno+1} ${il.current().lineno}`
+    // const nextLine = il.current().lines[ifCodeLine.lineno+1]
+    const currentLine = il.currentLine()
+    const l1 = il.genLabel()
+    // il.bindLabel(nextLine.lineno, l1)
+    il.bindLabel(currentLine.lineno+1, l1)
+    // currentLine.label = l2
+    // nextLine.label = l1 
+
+    ifCodeLine.code = `branch ${this.expr.rvalue()} ${l1}`
   }
 }
 
@@ -190,7 +199,10 @@ class Function extends Stmt{
   }
 
   buildLexicalScope(parent) {
-    this.lexicalScope = new LexicalScope(parent)   
+    this.lexicalScope = new LexicalScope(parent, {
+      type :'function',
+      argc :this.args.size()
+    })   
     parent.bind(this.id.value, 'function')  
     this.args.bindLexicalScope(this.lexicalScope)
     this.block.buildLexicalScope(this.lexicalScope, false)
@@ -205,7 +217,8 @@ class Function extends Stmt{
 
   gen(il) {
     il.add(`declare function ${this.lexicalScope.getLexemeName(this.id.lvalue())}`)
-    il.beginSection(this.lexicalScope.getLexemeName(this.id.value))
+    il.beginSection(this.id.value+'@' + this.lexicalScope.id)
+    il.add(`set %TOP% %SP%`)
     this.args.gen(il, this.lexicalScope)
     this.block.gen(il, this.lexicalScope)
     il.endSection()

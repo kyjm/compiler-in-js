@@ -1,14 +1,20 @@
 class ILGen {
 
+  static labelCounter = 1
+
   constructor(){
     this.stack = [] 
-    this.sections = []
+    this.sections = []    
   }
 
   beginSection(mark){
     const section = new Section(mark)
     this.sections.push(section)
     this.stack.push(section)
+  }
+
+  genLabel(){
+    return `LB${ILGen.labelCounter++}`
   }
 
   endSection(){
@@ -21,6 +27,17 @@ class ILGen {
 
   current(){
     return this.stack[this.stack.length - 1]
+  }
+
+  currentLine(){
+    const section = this.current()
+    return section.lines[section.lines.length-1]
+
+  }
+
+  bindLabel(index, label) {
+    const section = this.current()
+    section.bindLabel(index, label)
   }
 
   print(){
@@ -37,10 +54,14 @@ class ILGen {
   toText(){
     let text = ''
     for(let i = this.sections.length-1; i>=0; i--){
-      const section = this.sections[i]
-      text += section.mark + '\n'
+      const section =  this.sections[i]
+      text += 'section ' + section.mark + '\n'
       for(let line of section.lines) {
-        text += line.code + '\n'
+        if(section.labels[line.lineno]) {
+          text += section.labels[line.lineno]+":" + line.code + '\n'
+        } else {
+          text += line.code + '\n'
+        }
       }
     } 
     return text
@@ -53,6 +74,12 @@ class Section{
     this.mark = mark 
     this.lines = []
     this.lineno = 0
+    this.labels = []
+  }
+
+  bindLabel(index, label) {
+    this.labels[index] = label
+
   }
 
   add(code){

@@ -16,6 +16,6 @@ const symbols = ast.lexicalScope.toJSON()
 
 ast.gen()
 const ils = ast.ilGen.toText()
-fs.writeFileSync(opt + '.tss', JSON.stringify(symbols), 'utf-8')
+fs.writeFileSync(opt + '.tss', JSON.stringify(symbols, null, 2), 'utf-8')
 fs.writeFileSync(opt + '.tsi', ils, 'utf-8')
 console.log('完成')
